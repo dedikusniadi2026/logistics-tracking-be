@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  logistics-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logistics-api
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: host.docker.internal  # connect ke MySQL di host machine
+      REDIS_HOST: redis
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - logistics-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: logistics-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - logistics-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: logistics-rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - logistics-network
+
+networks:
+  logistics-network:
+    driver: bridge
